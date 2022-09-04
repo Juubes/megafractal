@@ -30,14 +30,20 @@ app.get("/", (req, res) => {
     // @ts-ignore
     endY = parseFloat(req.query.endY);
     // @ts-ignore
-    imgWidth = parseFloat(req.query.imgWidth);
+    imgWidth = parseInt(req.query.imgWidth);
     // @ts-ignore
-    imgHeight = parseFloat(req.query.imgHeight);
+    imgHeight = parseInt(req.query.imgHeight);
   } catch (ex) {
     console.log(ex);
     res.sendStatus(400);
     return;
   }
+
+  if (endY <= startY || endX <= startX || imgWidth * imgHeight < 1) {
+    return res.end(400);
+  }
+  console.log("Calculating for...");
+  console.log({ startX, startY, endX, endY, imgWidth, imgHeight });
 
   // Get pixels in rectangle
   const iterations = new Array<Array<number>>(imgHeight);
@@ -45,27 +51,41 @@ app.get("/", (req, res) => {
   const incrX = (endX - startX) / imgWidth;
   const incrY = (endY - startY) / imgHeight;
 
+  let indexX = 0;
+
   const timeStart = Date.now();
   for (let x = startX; x < endX; x += incrX) {
-    iterations[x] = new Array(imgHeight);
+    let indexY = 0;
+
+    iterations[indexX] = new Array(imgWidth);
     for (let y = startY; y < endY; y += incrY) {
       let normalizedX = (x / imgWidth) * 4;
       let normalizedY = (y / imgHeight) * 3;
 
-      iterations[x][y] = Math.min(getIterations(normalizedX, normalizedY), 255);
+      // console.log("Calculate pixel " + indexX + ":" + indexY);
+
+      iterations[indexX][indexY] = Math.min(
+        getIterations(normalizedX, normalizedY),
+        255
+      );
+      indexY++;
     }
+    indexX++;
   }
   const timeEnd = Date.now();
 
-  console.log(timeEnd - timeStart + "ms calculated");
+  console.log(timeEnd - timeStart + "ms for fractal calculation");
 
   const data: number[] = [];
 
   for (let i = 0; i < imgHeight; i++) {
     for (let j = 0; j < imgWidth; j++) {
+      // console.log(i, j);
       data.push(iterations[j][i]);
     }
   }
+
+  console.log("Arr");
   // const clamped = Uint8ClampedArray.from(data);
 
   const clamped = Uint8ClampedArray.from(data);
@@ -80,28 +100,30 @@ app.get("/", (req, res) => {
 const MAX_ITERATIONS = 500;
 // TODO: colors
 const getIterations = (argX: number, argY: number): number => {
+  // Offsets so the image shows up at the center
   const offsetX = -3;
   const offsetY = -1.5;
-  const c = { x: argX + offsetX, y: argY + offsetY };
 
-  let z = { x: 0, y: 0 },
-    n = 0,
-    p,
-    d;
+  // The pixel to be calculated
+  const pixel = { x: argX + offsetX, y: argY + offsetY };
+
+  let result = { x: 0, y: 0 };
+  let iter_num = 0;
+  let p, distance;
   do {
     p = {
-      x: z.x * z.x - Math.pow(z.y, 2),
-      y: 2 * z.x * z.y,
+      x: result.x * result.x - result.y * result.y,
+      y: 2 * result.x * result.y,
     };
-    z = {
-      x: p.x + c.x,
-      y: p.y + c.y,
+    result = {
+      x: p.x + pixel.x,
+      y: p.y + pixel.y,
     };
-    d = Math.sqrt(z.x * z.x + Math.pow(z.y, 2));
-    n += 1;
-  } while (d <= 2 && n < MAX_ITERATIONS);
+    distance = Math.sqrt(result.x * result.x + result.y * result.y);
+    iter_num++;
+  } while (distance <= 2 && iter_num < MAX_ITERATIONS);
 
-  return n;
+  return iter_num;
 };
 
 app.listen(5000, "localhost", () => {

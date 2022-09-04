@@ -2,18 +2,44 @@
  * @type {HTMLCanvasElement}
  */
 const canvas = document.getElementById("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-console.log({ canvas });
 const ctx = canvas.getContext("2d");
 
-canvas.onclick = () => {
-  updateCanvas();
+let startX = 0;
+let startY = 0;
+let endX, endY;
+
+canvas.onclick = (event) => {
+  // Always zooms on click
+
+  // console.log(event.x, event.y);
+
+  // startX = event.x - canvas.width / 2 / 2;
+  // startY = event.y - canvas.height / 2 / 2;
+
+  // endX = event.x + canvas.width / 2 / 2;
+  // endY = event.y + canvas.height / 2 / 2;
+
+  startX = event.x + startX - canvas.width / 2;
+  startY = event.y + startY - canvas.height / 2;
+  endX = startX + canvas.width;
+  endY = startY + canvas.height;
+
+  console.log(canvas.width);
+
+  updateCanvas(startX, startY, endX, endY, canvas.width, canvas.height);
 };
 
-const updateCanvas = () => {
+/**
+ * Fetches image and updates the canvas
+ * TODO: streaming one row at the time
+ */
+const updateCanvas = (startX, startY, endX, endY, imgWidth, imgHeight) => {
   console.log("Fetching image");
   const res = fetch(
-    "http://localhost:5000/?startX=0&startY=0&endX=1920&endY=1080&imgWidth=1920&imgHeight=1080"
+    `http://localhost:5000/?startX=${startX}&startY=${startY}&endX=${endX}&endY=${endY}&imgWidth=${imgWidth}&imgHeight=${imgHeight}`
   )
     .then((res) => res.arrayBuffer())
     .then((/**@type {ArrayBuffer}*/ ab) => {
@@ -21,23 +47,17 @@ const updateCanvas = () => {
 
       const data = new Uint8ClampedArray(ab);
 
-      let imgData = ctx.createImageData(1920, 1080);
-
-      let nums = new Set();
+      let imgData = ctx.createImageData(imgWidth, imgHeight);
 
       for (let i = 0; i < imgData.data.length; i += 1) {
         imgData.data[i * 4 + 0] = 0;
         imgData.data[i * 4 + 1] = 0;
-        imgData.data[i * 4 + 2] = data[i];
+        imgData.data[i * 4 + 2] = Math.min(data[i] * 10, 255);
         imgData.data[i * 4 + 3] = 255;
-
-        nums.add(ab[i]);
       }
       ctx.putImageData(imgData, 0, 0);
       console.log("Drawn");
-
-      console.log(nums);
     });
 };
 
-updateCanvas();
+updateCanvas(0, 0, canvas.width, canvas.height, canvas.width, canvas.height);
