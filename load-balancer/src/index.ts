@@ -1,16 +1,17 @@
-import express from "express";
+import compression, { CompressionFilter } from "compression";
 import cors from "cors";
+import express from "express";
+
 const app = express();
 
 app.use(express.urlencoded({ extended: false }));
 app.use(cors({}));
 
-interface QueryParams {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-}
+const filter: CompressionFilter = (req, res) => {
+  if (req.path === "/") return true;
+  return false;
+};
+app.use(compression({ filter }));
 
 app.get("/", (req, res) => {
   let startX: number,
@@ -39,41 +40,48 @@ app.get("/", (req, res) => {
   }
 
   // Get pixels in rectangle
-  const iterations = new Array<Array<number>>(imgWidth);
+  const iterations = new Array<Array<number>>(imgHeight);
 
   const incrX = (endX - startX) / imgWidth;
   const incrY = (endY - startY) / imgHeight;
 
-  let pixelIndexX = 0;
-  let pixelIndexY = 0;
+  const timeStart = Date.now();
   for (let x = startX; x < endX; x += incrX) {
     iterations[x] = new Array(imgHeight);
     for (let y = startY; y < endY; y += incrY) {
-      let normalizedX = x / imgWidth;
-      let normalizedY = y / imgHeight;
+      let normalizedX = (x / imgWidth) * 4;
+      let normalizedY = (y / imgHeight) * 3;
 
       iterations[x][y] = Math.min(getIterations(normalizedX, normalizedY), 255);
-      pixelIndexY++;
     }
-    pixelIndexX++;
   }
-  console.log({ length: iterations.length });
+  const timeEnd = Date.now();
 
-  // pixels.forEach((pixel) => {
-  //   pixel.x = Math.round(imgWidth * pixel.x);
-  //   pixel.y = Math.round(imgHeight * pixel.y);
-  // });
+  console.log(timeEnd - timeStart + "ms calculated");
 
-  console.log({ iterations });
+  const data: number[] = [];
 
-  res.json(iterations);
+  for (let i = 0; i < imgHeight; i++) {
+    for (let j = 0; j < imgWidth; j++) {
+      data.push(iterations[j][i]);
+    }
+  }
+  // const clamped = Uint8ClampedArray.from(data);
+
+  const clamped = Uint8ClampedArray.from(data);
+
+  // const blob = Buffer.from(clamped, { type: "arraybuffer" });
+
+  // savePixels([data], "png", {});
+
+  res.send(Buffer.from(clamped.buffer));
 });
 
 const MAX_ITERATIONS = 500;
 // TODO: colors
 const getIterations = (argX: number, argY: number): number => {
-  const offsetX = -2;
-  const offsetY = -0.5;
+  const offsetX = -3;
+  const offsetY = -1.5;
   const c = { x: argX + offsetX, y: argY + offsetY };
 
   let z = { x: 0, y: 0 },
@@ -82,14 +90,14 @@ const getIterations = (argX: number, argY: number): number => {
     d;
   do {
     p = {
-      x: Math.pow(z.x, 2) - Math.pow(z.y, 2),
+      x: z.x * z.x - Math.pow(z.y, 2),
       y: 2 * z.x * z.y,
     };
     z = {
       x: p.x + c.x,
       y: p.y + c.y,
     };
-    d = Math.sqrt(Math.pow(z.x, 2) + Math.pow(z.y, 2));
+    d = Math.sqrt(z.x * z.x + Math.pow(z.y, 2));
     n += 1;
   } while (d <= 2 && n < MAX_ITERATIONS);
 
