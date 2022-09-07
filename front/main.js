@@ -50,12 +50,21 @@ const updateCanvas = async (
   const arrayBuffer = await res.arrayBuffer();
   console.log("Data received");
 
-  const data = new Uint8ClampedArray(arrayBuffer);
+  const data = new Uint32Array(arrayBuffer);
 
   let imgData = ctx.createImageData(imgWidth, imgHeight);
 
+  let max_iter = 1;
+  for (let i = 0; i < imgData.data.length; i++) {
+    if (data[i] > max_iter) max_iter = data[i];
+  }
+
   for (let i = 0; i < imgData.data.length; i += 1) {
-    const [r, g, b] = hslToRgb(data[i] / 255, 1, data[i] / 255);
+    // const [r, g, b] = hslToRgb(data[i] / 255, data[i] / 255, data[i] / 255);
+    // Can be optimised. 2 million pixels, but only 255 inputs
+    const iter = data[i];
+    // console.log(data)
+    const [r, g, b] = hslToRgb(iter / max_iter, 1, iter/max_iter);
 
     imgData.data[i * 4 + 0] = r;
     imgData.data[i * 4 + 1] = g;

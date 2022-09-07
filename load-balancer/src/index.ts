@@ -42,7 +42,7 @@ app.get("/", (req, res) => {
   if (endY <= startY || endX <= startX || imgWidth * imgHeight < 1) {
     return res.end(400);
   }
-  const maxIterCount = 100 + Math.sqrt(imgWidth / (endX - startX));
+  const maxIterCount = 100 + Math.pow(imgWidth / (endX - startX), 0.4);
 
   console.log("Calculating for...");
   console.log({ startX, startY, endX, endY, imgWidth, imgHeight });
@@ -78,26 +78,26 @@ app.get("/", (req, res) => {
 
   console.log(timeEnd - timeStart + "ms for fractal calculation");
 
-  let MAX_ITER_COUNT_IN_DATA = 255;
+  // let MAX_ITER_COUNT_IN_DATA = 255;
   const data: number[] = [];
   for (let i = 0; i < imgHeight; i++) {
     for (let j = 0; j < imgWidth; j++) {
       data.push(iterations[j][i]);
 
-      if (iterations[j][i] > MAX_ITER_COUNT_IN_DATA)
-        MAX_ITER_COUNT_IN_DATA = iterations[j][i];
+      // if (iterations[j][i] > MAX_ITER_COUNT_IN_DATA)
+      //   MAX_ITER_COUNT_IN_DATA = iterations[j][i];
     }
   }
 
-  for (let i = 0; i < data.length; i++) {
-    const element = data[i];
-    data[i] = (255 * element) / MAX_ITER_COUNT_IN_DATA;
-  }
+  // for (let i = 0; i < data.length; i++) {
+  //   const element = data[i];
+  //   data[i] = (255 * element) / MAX_ITER_COUNT_IN_DATA;
+  // }
 
   console.log("Iterations per pixel: " + maxIterCount);
   // const clamped = Uint8ClampedArray.from(data);
 
-  const clamped = Uint8ClampedArray.from(data);
+  const clamped = Uint32Array.from(data);
 
   res.send(Buffer.from(clamped.buffer));
 });
