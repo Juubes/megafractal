@@ -9,6 +9,7 @@ const ctx = canvas.getContext("2d");
 
 let startX = 0;
 let startY = 0;
+let zoom = 1;
 let endX, endY;
 
 canvas.onclick = (event) => {
@@ -22,12 +23,17 @@ canvas.onclick = (event) => {
   // endX = event.x + canvas.width / 2 / 2;
   // endY = event.y + canvas.height / 2 / 2;
 
-  startX = event.x + startX - canvas.width / 2;
-  startY = event.y + startY - canvas.height / 2;
-  endX = startX + canvas.width;
-  endY = startY + canvas.height;
+  zoom = 1;
 
-  console.log(canvas.width);
+  // click X/Y -> absolute coordinate
+
+  const clickX = event.x + startX;
+  const clickY = event.y + startY;
+
+  startX = clickX - canvas.width / 2;
+  startY = clickY - canvas.height / 2;
+  endX = startX + canvas.width / zoom;
+  endY = startY + canvas.height / zoom;
 
   updateCanvas(startX, startY, endX, endY, canvas.width, canvas.height);
 };
@@ -36,28 +42,33 @@ canvas.onclick = (event) => {
  * Fetches image and updates the canvas
  * TODO: streaming one row at the time
  */
-const updateCanvas = (startX, startY, endX, endY, imgWidth, imgHeight) => {
+const updateCanvas = async (
+  startX,
+  startY,
+  endX,
+  endY,
+  imgWidth,
+  imgHeight
+) => {
   console.log("Fetching image");
-  const res = fetch(
+  const res = await fetch(
     `http://localhost:5000/?startX=${startX}&startY=${startY}&endX=${endX}&endY=${endY}&imgWidth=${imgWidth}&imgHeight=${imgHeight}`
-  )
-    .then((res) => res.arrayBuffer())
-    .then((/**@type {ArrayBuffer}*/ ab) => {
-      console.log("Data received");
+  );
+  const arrayBuffer = await res.arrayBuffer();
+  console.log("Data received");
 
-      const data = new Uint8ClampedArray(ab);
+  const data = new Uint8ClampedArray(arrayBuffer);
 
-      let imgData = ctx.createImageData(imgWidth, imgHeight);
+  let imgData = ctx.createImageData(imgWidth, imgHeight);
 
-      for (let i = 0; i < imgData.data.length; i += 1) {
-        imgData.data[i * 4 + 0] = 0;
-        imgData.data[i * 4 + 1] = 0;
-        imgData.data[i * 4 + 2] = Math.min(data[i] * 10, 255);
-        imgData.data[i * 4 + 3] = 255;
-      }
-      ctx.putImageData(imgData, 0, 0);
-      console.log("Drawn");
-    });
+  for (let i = 0; i < imgData.data.length; i += 1) {
+    imgData.data[i * 4 + 0] = 0;
+    imgData.data[i * 4 + 1] = 0;
+    imgData.data[i * 4 + 2] = Math.min(data[i] * 10, 255);
+    imgData.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(imgData, 0, 0);
+  console.log("Drawn");
 };
 
 updateCanvas(0, 0, canvas.width, canvas.height, canvas.width, canvas.height);
