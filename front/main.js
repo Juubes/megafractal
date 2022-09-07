@@ -12,26 +12,19 @@ let startY = 0;
 let zoom = 1;
 let endX, endY;
 
+// canvas.addEventListener("keypress", (event) => {});
+
 canvas.onclick = (event) => {
-  // Always zooms on click
-
-  // console.log(event.x, event.y);
-
-  // startX = event.x - canvas.width / 2 / 2;
-  // startY = event.y - canvas.height / 2 / 2;
-
-  // endX = event.x + canvas.width / 2 / 2;
-  // endY = event.y + canvas.height / 2 / 2;
-
-  zoom = 1;
-
+  // Calculate center
   // click X/Y -> absolute coordinate
+  const clickX = event.x / zoom + startX;
+  const clickY = event.y / zoom + startY;
 
-  const clickX = event.x + startX;
-  const clickY = event.y + startY;
+  zoom *= 1.5;
 
-  startX = clickX - canvas.width / 2;
-  startY = clickY - canvas.height / 2;
+  // Set bounds
+  startX = clickX - canvas.width / zoom / 2;
+  startY = clickY - canvas.height / zoom / 2;
   endX = startX + canvas.width / zoom;
   endY = startY + canvas.height / zoom;
 
@@ -62,9 +55,11 @@ const updateCanvas = async (
   let imgData = ctx.createImageData(imgWidth, imgHeight);
 
   for (let i = 0; i < imgData.data.length; i += 1) {
-    imgData.data[i * 4 + 0] = 0;
-    imgData.data[i * 4 + 1] = 0;
-    imgData.data[i * 4 + 2] = Math.min(data[i] * 10, 255);
+    const [r, g, b] = hslToRgb(data[i] / 255, 1, data[i] / 255);
+
+    imgData.data[i * 4 + 0] = r;
+    imgData.data[i * 4 + 1] = g;
+    imgData.data[i * 4 + 2] = b;
     imgData.data[i * 4 + 3] = 255;
   }
   ctx.putImageData(imgData, 0, 0);
