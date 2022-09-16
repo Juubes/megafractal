@@ -1,29 +1,62 @@
-// Using experimental box syntax so stack doesn't overflow on array malloc
-#![feature(box_syntax)]
-#![feature(slice_flatten)]
-
-pub mod cors;
 pub mod mandelbrot;
 
-#[macro_use]
-extern crate rocket;
+use serde::{Deserialize, Serialize};
+use std::fmt::{format, Debug};
+use std::path::Display;
+use std::time::Instant;
+use warp::hyper::Response;
+use warp::test::request;
+use warp::{Filter, Future};
 
-use std::{time::Instant, vec};
-
-#[launch]
-fn rocket() -> _ {
-    rocket::build()
-        .mount("/", routes![index])
-        .attach(cors::CORS)
+#[derive(Deserialize, Serialize, Debug)]
+struct ZoomParams {
+    start_x: f64,
+    start_y: f64,
+    end_x: f64,
+    end_y: f64,
+    img_width: u16,
+    img_height: u16,
+}
+impl core::fmt::Display for ZoomParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(
+            format!(
+                "{}, {}, {}, {}, {}, {}",
+                self.start_x, self.start_y, self.end_x, self.end_y, self.img_width, self.img_height
+            )
+            .as_str(),
+        )
+    }
 }
 
-// #[get("/")]
-// fn json() -> status::Accepted<content::RawText<String>> {
-//     status::Accepted(Some(content::RawText("Processing".to_string())))
-//     // status::Accepted(Status::Ok, content::RawText("sefsef".to_string()))
-// }
+#[tokio::main]
+async fn main() {
+    let cors = warp::cors()
+        .allow_origin("http://localhost:3000")
+        .allow_method("GET")
+        .build();
 
-#[get("/?<start_x>&<start_y>&<end_x>&<end_y>&<img_width>&<img_height>")]
+    let options_route = warp::options()
+        .map(|| {
+            return warp::reply();
+        })
+        .with(cors.clone());
+
+    let default_route = warp::get()
+        .and(warp::query::<ZoomParams>())
+        .map(|params: ZoomParams| {
+            println!("Sending data!");
+            return Response::builder().body(format!("{}", params));
+        })
+        .with(cors.clone());
+
+    let catch_all = warp::any().map(|| "hello world");
+
+    warp::serve(default_route.or(options_route).or(catch_all))
+        .run(([127, 0, 0, 1], 5000))
+        .await
+}
+
 fn index(
     start_x: f64,
     start_y: f64,
@@ -32,7 +65,7 @@ fn index(
     img_width: u16,
     img_height: u16,
 ) -> String {
-    if end_y <= start_y || end_x <= start_x || img_width as f64 * f64::from(img_height) < 1f64 {
+    if end_y <= start_y || end_x <= start_x || f64::from(img_width * img_height) < 1f64 {
         // TODO: handle properly with code 400
         panic!("Invalid input")
     }
@@ -45,7 +78,7 @@ fn index(
         start_x, start_y, end_x, end_y, img_width, img_height
     );
 
-    let mut iterations: Box<[[u16; 1080]; 1920]> = box [[0u16; 1080]; 1920];
+    let mut iterations: Box<[[u16; 1080]; 1920]> = Box::from([[0u16; 1080]; 1920]);
 
     let incr_x = (end_x - start_x) / f64::from(img_width);
     let incr_y = (end_y - start_y) / f64::from(img_height);
