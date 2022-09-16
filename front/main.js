@@ -45,12 +45,15 @@ const updateCanvas = async (
 ) => {
   console.log("Fetching image");
   const res = await fetch(
-    `http://localhost:5000/?startX=${startX}&startY=${startY}&endX=${endX}&endY=${endY}&imgWidth=${imgWidth}&imgHeight=${imgHeight}`
+    // `http://localhost:5000/?startX=${startX}&startY=${startY}&endX=${endX}&endY=${endY}&imgWidth=${imgWidth}&imgHeight=${imgHeight}`
+    `http://localhost:5000/?start_x=${startX}&start_y=${startY}&end_x=${endX}&end_y=${endY}&img_width=${imgWidth}&img_height=${imgHeight}`
   );
   const arrayBuffer = await res.arrayBuffer();
   console.log("Data received");
 
   const data = new Uint32Array(arrayBuffer);
+
+  console.log("Data length: " + data.length);
 
   let imgData = ctx.createImageData(imgWidth, imgHeight);
 
@@ -64,7 +67,7 @@ const updateCanvas = async (
     // Can be optimised. 2 million pixels, but only 255 inputs
     const iter = data[i];
     // console.log(data)
-    const [r, g, b] = hslToRgb(iter / max_iter, 1, iter/max_iter);
+    const [r, g, b] = hslToRgb(iter / max_iter, 1, iter / max_iter);
 
     imgData.data[i * 4 + 0] = r;
     imgData.data[i * 4 + 1] = g;
