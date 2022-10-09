@@ -1,12 +1,11 @@
 pub mod mandelbrot;
 
 use serde::{Deserialize, Serialize};
-use std::fmt::{format, Debug};
-use std::path::Display;
 use std::time::Instant;
-use warp::hyper::Response;
-use warp::test::request;
-use warp::{Filter, Future};
+use warp::{
+    hyper::{Method, Response},
+    Filter,
+};
 
 #[derive(Deserialize, Serialize, Debug)]
 struct ZoomParams {
@@ -31,46 +30,46 @@ impl core::fmt::Display for ZoomParams {
 
 #[tokio::main]
 async fn main() {
-    let cors = warp::cors()
-        .allow_origin("http://localhost:3000")
-        .allow_method("GET")
-        .build();
-
-    let options_route = warp::options()
-        .map(|| {
-            return warp::reply();
-        })
-        .with(cors.clone());
-
-    let default_route = warp::get()
-        .and(warp::query::<ZoomParams>())
-        .map(|params: ZoomParams| {
-            println!("Sending data!");
-            return Response::builder().body(format!("{}", params));
-        })
-        .with(cors.clone());
-
-    let catch_all = warp::any().map(|| "hello world");
-
-    warp::serve(default_route.or(options_route).or(catch_all))
-        .run(([127, 0, 0, 1], 5000))
-        .await
+    start_server().await
 }
 
-fn index(
-    start_x: f64,
-    start_y: f64,
-    end_x: f64,
-    end_y: f64,
-    img_width: u16,
-    img_height: u16,
-) -> String {
-    if end_y <= start_y || end_x <= start_x || f64::from(img_width * img_height) < 1f64 {
+async fn start_server() {
+    let cors = warp::cors()
+        .allow_origin("http://localhost:3000")
+        .allow_methods([Method::GET])
+        .build();
+
+    let index = warp::get()
+        .and(warp::path::end()) // index
+        .and(warp::query::<ZoomParams>())
+        .map(process_request)
+        .with(cors)
+        .with(warp::filters::compression::gzip());
+
+    let catch_all = warp::any().map(|| Response::builder().status(404).body("404"));
+
+    let routes = index.or(catch_all);
+
+    warp::serve(routes).run(([127, 0, 0, 1], 5000)).await;
+}
+
+fn process_request(params: ZoomParams) -> Vec<u8> {
+    let ZoomParams {
+        start_x,
+        start_y,
+        end_x,
+        end_y,
+        img_width,
+        img_height,
+    } = params;
+
+    if end_y <= start_y || end_x <= start_x || ((img_width as f64) * (img_height as f64)) < 1f64 {
         // TODO: handle properly with code 400
         panic!("Invalid input")
     }
 
-    let max_iter_count = (100f64 + (f64::from(img_width) / (end_x - start_x)).powf(0.4f64)).floor();
+    let max_iter_count =
+        (100f64 + ((img_width as f64) / (end_x - start_x)).powf(0.4 as f64)).floor();
 
     println!("Calculating area for...");
     println!(
@@ -78,40 +77,37 @@ fn index(
         start_x, start_y, end_x, end_y, img_width, img_height
     );
 
-    let mut iterations: Box<[[u16; 1080]; 1920]> = Box::from([[0u16; 1080]; 1920]);
-
-    let incr_x = (end_x - start_x) / f64::from(img_width);
-    let incr_y = (end_y - start_y) / f64::from(img_height);
+    let mut iterations = vec![255; (img_width as usize) * (img_height as usize)];
 
     let time_start = Instant::now();
+    let range_x = (end_x - start_x).abs();
+    let range_y = (end_y - start_y).abs();
+
+    print!("Diffx: {}", range_x);
+
     for pixel_x in 0..img_width {
         for pixel_y in 0..img_height {
-            let x = f64::from(pixel_x) * (end_x - start_x) / f64::from(img_width);
-            let y = pixel_y as f64 * (end_y - start_y) / f64::from(img_height);
+            let x = start_x + (pixel_x as f64) / (img_width as f64) * range_x;
+            let y = start_y + (pixel_y as f64) / (img_height as f64) * range_y;
 
-            iterations[pixel_x as usize][pixel_y as usize] =
-                mandelbrot::get_iterations(x, y, (max_iter_count) as u16);
+            // let x: f64 = pixel_x as f64;
+            // let y: f64 = pixel_y as f64;
+
+            iterations[((pixel_y as f64) * (img_width as f64)) as usize + (pixel_x as usize)] =
+
+
+                // Scales improperly
+                // mandelbrot::get_iterations(x, y, (max_iter_count) as u8);
+                mandelbrot::get_iterations(x , y, 255);
         }
     }
 
     let time_end = time_start.elapsed();
-
     println!("Calculated frame in {}ms", time_end.as_millis());
 
-    let mut data = Vec::new();
-    data.resize(img_width as usize * img_height as usize, 0u16);
+    let vec: Vec<u8> = iterations.iter().map(|e| *e as u8).collect();
 
-    let mut count = 0;
-    for x in 0..(img_height as usize) {
-        for y in 0..(img_width as usize) {
-            data[x * (img_width as usize) + y] = iterations[y][x];
-            count += 1;
-        }
-    }
-
-    println!("Width: {}, Height: {}", img_width, img_height);
-
-    return format!("{:?}", data);
-
-    // http://localhost:5000/?start_x=0&start_y=0&end_x=1920&end_y=1080&img_width=1920&img_height=1080
+    return vec;
 }
+
+// http://localhost:5000/?start_x=0&start_y=0&end_x=1920&end_y=1080&img_width=1920&img_height=1080

@@ -3,7 +3,7 @@ struct Imaginary {
     y: f64,
 }
 
-pub fn get_iterations(coordinate_x: f64, coordinate_y: f64, max_iter_count: u16) -> u16 {
+pub fn get_iterations(coordinate_x: f64, coordinate_y: f64, max_iter_count: u8) -> u8 {
     // Offsets so the image shows up at the center
     let offset_x = -3f64;
     let offset_y = -1.5f64;
