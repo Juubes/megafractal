@@ -43,13 +43,14 @@ async fn start_server() {
     let index = warp::get()
         .and(warp::path::end()) // index
         .and(warp::query::<ZoomParams>())
-        .then(process_request)
-        .with(cors)
-        .with(warp::filters::compression::gzip());
+        .then(process_request);
 
     let catch_all = warp::any().map(|| Response::builder().status(404).body("404"));
 
-    let routes = index.or(catch_all);
+    let routes = index
+        .or(catch_all)
+        .with(cors)
+        .with(warp::filters::compression::gzip());
 
     warp::serve(routes).run(([127, 0, 0, 1], 5000)).await;
 }
@@ -64,12 +65,15 @@ async fn process_request(params: ZoomParams) -> Vec<u8> {
         img_height,
     } = params;
 
-    if end_y <= start_y || end_x <= start_x || ((img_width as f64) * (img_height as f64)) < 1f64 {
+    let img_width = img_width as f64;
+    let img_height = img_height as f64;
+
+    if end_y <= start_y || end_x <= start_x || img_width * img_height < 1.0 {
         // TODO: handle properly with code 400
         panic!("Invalid input")
     }
 
-    let max_iter_count = (200f64 + ((img_width as f64) / (end_x - start_x)).powf(0.5)).floor();
+    let max_iter_count = (200.0 + (img_width / (end_x - start_x)).powf(0.5)).floor();
 
     println!("Max iterations: {}", max_iter_count);
 
@@ -90,11 +94,10 @@ async fn process_request(params: ZoomParams) -> Vec<u8> {
     // let mut tasks = Vec::<JoinHandle<(u16, u16, u32)>>::new();
     let mut tasks = JoinSet::<(u16, u16, u32)>::new();
 
-    for pixel_x in 0..img_width {
-        for pixel_y in 0..img_height {
-            let x = (start_x + (pixel_x as f64) / (img_width as f64) * range_x) / img_width as f64;
-            let y =
-                (start_y + (pixel_y as f64) / (img_height as f64) * range_y) / img_height as f64;
+    for pixel_x in 0..img_width as u16 {
+        for pixel_y in 0..img_height as u16 {
+            let x = (start_x + (pixel_x as f64) / img_width * range_x) / img_width;
+            let y = (start_y + (pixel_y as f64) / img_height * range_y) / img_height;
 
             tasks.spawn(async move {
                 return (
@@ -112,7 +115,7 @@ async fn process_request(params: ZoomParams) -> Vec<u8> {
         if opt.is_some() {
             let (x, y, result) = opt.unwrap().unwrap();
 
-            iterations[((y as f64) * (img_width as f64)) as usize + (x as usize)] = result;
+            iterations[((y as f64) * img_width) as usize + (x as usize)] = result;
         } else {
             break;
         }
