@@ -61,7 +61,7 @@ const updateCanvas = async (
   const headers = new Headers();
   headers.set("Access-Control-Allow-Origin", "*");
   const res = await fetch(
-    `http://localhost:5000/?startX=${startX}&startY=${startY}&endX=${endX}&endY=${endY}&imgWidth=${imgWidth}&imgHeight=${imgHeight}`
+    `http://localhost:5000/?start_x=${startX}&start_y=${startY}&end_x=${endX}&end_y=${endY}&img_width=${imgWidth}&img_height=${imgHeight}`
   );
   const arrayBuffer = await res.arrayBuffer();
   console.log("Data received");

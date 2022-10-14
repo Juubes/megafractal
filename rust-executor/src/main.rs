@@ -36,8 +36,8 @@ async fn main() {
 
 async fn start_server() {
     let cors = warp::cors()
-        .allow_any_origin()
         .allow_methods([Method::GET])
+        .allow_any_origin()
         .build();
 
     let index = warp::get()
@@ -51,7 +51,7 @@ async fn start_server() {
 
     let routes = index.or(catch_all);
 
-    warp::serve(routes).run(([0, 0, 0, 0], 5000)).await;
+    warp::serve(routes).run(([127, 0, 0, 1], 5000)).await;
 }
 
 async fn process_request(params: ZoomParams) -> Vec<u8> {
@@ -93,7 +93,8 @@ async fn process_request(params: ZoomParams) -> Vec<u8> {
     for pixel_x in 0..img_width {
         for pixel_y in 0..img_height {
             let x = (start_x + (pixel_x as f64) / (img_width as f64) * range_x) / img_width as f64;
-            let y = (start_y + (pixel_y as f64) / (img_height as f64) * range_y) / img_height as f64;
+            let y =
+                (start_y + (pixel_y as f64) / (img_height as f64) * range_y) / img_height as f64;
 
             tasks.spawn(async move {
                 return (
