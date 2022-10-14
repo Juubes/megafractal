@@ -1,7 +1,8 @@
 pub mod mandelbrot;
 
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
+use std::{time::Instant, vec};
+use tokio::task::JoinSet;
 use warp::{
     hyper::{Method, Response},
     Filter,
@@ -35,14 +36,14 @@ async fn main() {
 
 async fn start_server() {
     let cors = warp::cors()
-        .allow_origin("http://localhost:3000")
+        .allow_any_origin()
         .allow_methods([Method::GET])
         .build();
 
     let index = warp::get()
         .and(warp::path::end()) // index
         .and(warp::query::<ZoomParams>())
-        .map(process_request)
+        .then(process_request)
         .with(cors)
         .with(warp::filters::compression::gzip());
 
@@ -50,10 +51,10 @@ async fn start_server() {
 
     let routes = index.or(catch_all);
 
-    warp::serve(routes).run(([127, 0, 0, 1], 5000)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 5000)).await;
 }
 
-fn process_request(params: ZoomParams) -> Vec<u8> {
+async fn process_request(params: ZoomParams) -> Vec<u8> {
     let ZoomParams {
         start_x,
         start_y,
@@ -68,8 +69,9 @@ fn process_request(params: ZoomParams) -> Vec<u8> {
         panic!("Invalid input")
     }
 
-    let max_iter_count =
-        (100f64 + ((img_width as f64) / (end_x - start_x)).powf(0.4 as f64)).floor();
+    let max_iter_count = (200f64 + ((img_width as f64) / (end_x - start_x)).powf(0.5)).floor();
+
+    println!("Max iterations: {}", max_iter_count);
 
     println!("Calculating area for...");
     println!(
@@ -83,29 +85,42 @@ fn process_request(params: ZoomParams) -> Vec<u8> {
     let range_x = (end_x - start_x).abs();
     let range_y = (end_y - start_y).abs();
 
-    print!("Diffx: {}", range_x);
+    println!("range_x: {}", range_x);
+
+    // let mut tasks = Vec::<JoinHandle<(u16, u16, u32)>>::new();
+    let mut tasks = JoinSet::<(u16, u16, u32)>::new();
 
     for pixel_x in 0..img_width {
         for pixel_y in 0..img_height {
-            let x = start_x + (pixel_x as f64) / (img_width as f64) * range_x;
-            let y = start_y + (pixel_y as f64) / (img_height as f64) * range_y;
+            let x = (start_x + (pixel_x as f64) / (img_width as f64) * range_x) / img_width as f64;
+            let y = (start_y + (pixel_y as f64) / (img_height as f64) * range_y) / img_height as f64;
 
-            // let x: f64 = pixel_x as f64;
-            // let y: f64 = pixel_y as f64;
+            tasks.spawn(async move {
+                return (
+                    pixel_x,
+                    pixel_y,
+                    mandelbrot::get_iterations(x, y, max_iter_count as u32),
+                );
+            });
+        }
+    }
 
-            iterations[((pixel_y as f64) * (img_width as f64)) as usize + (pixel_x as usize)] =
+    loop {
+        let opt = tasks.join_next().await;
 
+        if opt.is_some() {
+            let (x, y, result) = opt.unwrap().unwrap();
 
-                // Scales improperly
-                // mandelbrot::get_iterations(x, y, (max_iter_count) as u8);
-                mandelbrot::get_iterations(x , y, 255);
+            iterations[((y as f64) * (img_width as f64)) as usize + (x as usize)] = result;
+        } else {
+            break;
         }
     }
 
     let time_end = time_start.elapsed();
     println!("Calculated frame in {}ms", time_end.as_millis());
 
-    let vec: Vec<u8> = iterations.iter().map(|e| *e as u8).collect();
+    let vec: Vec<u8> = iterations.iter().flat_map(|e| e.to_le_bytes()).collect();
 
     return vec;
 }

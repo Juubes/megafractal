@@ -12,15 +12,27 @@ let startY = 0;
 let zoom = 1;
 let endX, endY;
 
-// canvas.addEventListener("keypress", (event) => {});
+canvas.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
 
-canvas.onclick = (event) => {
+  processClick(e.x, e.y, "right");
+});
+
+canvas.addEventListener("click", (e) => {
+  processClick(e.x, e.y, "left");
+});
+
+const processClick = (x, y, button) => {
   // Calculate center
   // click X/Y -> absolute coordinate
   const clickX = event.x / zoom + startX;
   const clickY = event.y / zoom + startY;
 
-  zoom *= 1.5;
+  if (button === "left") {
+    zoom *= 1.5;
+  } else if (button === "right") {
+    zoom /= 1.5;
+  }
 
   // Set bounds
   startX = clickX - canvas.width / zoom / 2;
@@ -30,6 +42,8 @@ canvas.onclick = (event) => {
 
   updateCanvas(startX, startY, endX, endY, canvas.width, canvas.height);
 };
+
+canvas.onclick = (event) => {};
 
 /**
  * Fetches image and updates the canvas
@@ -47,13 +61,12 @@ const updateCanvas = async (
   const headers = new Headers();
   headers.set("Access-Control-Allow-Origin", "*");
   const res = await fetch(
-    // `http://localhost:5000/?startX=${startX}&startY=${startY}&endX=${endX}&endY=${endY}&imgWidth=${imgWidth}&imgHeight=${imgHeight}`
-    `http://localhost:5000/?start_x=${startX}&start_y=${startY}&end_x=${endX}&end_y=${endY}&img_width=${imgWidth}&img_height=${imgHeight}`
+    `http://localhost:5000/?startX=${startX}&startY=${startY}&endX=${endX}&endY=${endY}&imgWidth=${imgWidth}&imgHeight=${imgHeight}`
   );
   const arrayBuffer = await res.arrayBuffer();
   console.log("Data received");
 
-  const data = new Uint8Array(arrayBuffer);
+  const data = new Uint32Array(arrayBuffer);
 
   let imgData = ctx.createImageData(imgWidth, imgHeight);
 
@@ -63,7 +76,7 @@ const updateCanvas = async (
   // }
 
   let max_iter = 255;
-  console.log(data)
+  console.log(data);
 
   for (let i = 0; i < imgData.data.length; i += 1) {
     // Can be optimised. 2 million pixels, but only 255 inputs
