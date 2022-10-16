@@ -1,34 +1,28 @@
-struct Imaginary {
-    x: f64,
-    y: f64,
-}
-
 pub fn get_iterations(coordinate_x: f64, coordinate_y: f64, max_iter_count: u32) -> u32 {
     // The pixel to be calculated
-    let pixel = Imaginary {
-        x: coordinate_x * 4.0 - 2.5,
-        y: coordinate_y * 2.0 - 1.0,
-    };
+    let pixel_x = coordinate_x * 8.0 - 5.0;
+    let pixel_y = coordinate_y * 4.0 - 2.0;
 
-    let mut result = Imaginary { x: 0.0, y: 0.0 };
-    let mut iter_num = 0;
-    let mut p: Imaginary;
-    let mut distance: f64;
+    let mut x = 0.0;
+    let mut y = 0.0;
+
+    let mut x2 = 0.0;
+    let mut y2 = 0.0;
+
+    let mut iter_num = 1;
+
     loop {
-        p = Imaginary {
-            x: result.x * result.x - result.y * result.y,
-            y: 2.0 * result.x * result.y,
-        };
-        result = Imaginary {
-            x: p.x + pixel.x,
-            y: p.y + pixel.y,
-        };
-        distance = (result.x * result.x + result.y * result.y).sqrt();
-        iter_num += 1;
+        y = (x + x) * y + pixel_y;
+        x = x2 - y2 + pixel_x;
 
-        if distance > 2.0 || iter_num >= max_iter_count {
+        x2 = x * x;
+        y2 = y * y;
+
+        if x2 + y2 >= 4.0 || iter_num >= max_iter_count {
             break;
         }
+
+        iter_num += 1;
     }
 
     return iter_num;

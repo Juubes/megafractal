@@ -68,7 +68,9 @@ async fn process_request(params: ZoomParams) -> Vec<u8> {
         panic!("Invalid input")
     }
 
-    let max_iter_count = ((100.0 + (img_width / (end_x - start_x)).powf(0.5)).floor()) as u32;
+    // let max_iter_count = ((100.0 + (img_width / (end_x - start_x)).powf(0.5)).floor()) as u32;
+    let scale = (end_x - start_x) / img_width;
+    let max_iter_count = (50.0 + f64::log10(4.0 / f64::abs(scale)).powf(5.0)) as u32;
 
     println!("Max iterations: {}", max_iter_count);
 
