@@ -6,8 +6,8 @@ struct Imaginary {
 pub fn get_iterations(coordinate_x: f64, coordinate_y: f64, max_iter_count: u32) -> u32 {
     // The pixel to be calculated
     let pixel = Imaginary {
-        x: coordinate_x * 8.0 - 6.0,
-        y: coordinate_y * 4.0 - 2.0,
+        x: coordinate_x * 4.0 - 2.5,
+        y: coordinate_y * 2.0 - 1.0,
     };
 
     let mut result = Imaginary { x: 0.0, y: 0.0 };

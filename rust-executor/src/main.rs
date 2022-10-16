@@ -2,7 +2,7 @@ pub mod mandelbrot;
 
 use serde::{Deserialize, Serialize};
 use std::{time::Instant, vec};
-use tokio::task::JoinSet;
+
 use warp::{
     hyper::{Method, Response},
     Filter,
@@ -27,11 +27,6 @@ impl core::fmt::Display for ZoomParams {
             .as_str(),
         )
     }
-}
-
-#[tokio::main]
-async fn main() {
-    start_server().await
 }
 
 async fn start_server() {
@@ -73,7 +68,7 @@ async fn process_request(params: ZoomParams) -> Vec<u8> {
         panic!("Invalid input")
     }
 
-    let max_iter_count = (200.0 + (img_width / (end_x - start_x)).powf(0.5)).floor();
+    let max_iter_count = ((100.0 + (img_width / (end_x - start_x)).powf(0.5)).floor()) as u32;
 
     println!("Max iterations: {}", max_iter_count);
 
@@ -91,33 +86,13 @@ async fn process_request(params: ZoomParams) -> Vec<u8> {
 
     println!("range_x: {}", range_x);
 
-    // let mut tasks = Vec::<JoinHandle<(u16, u16, u32)>>::new();
-    let mut tasks = JoinSet::<(u16, u16, u32)>::new();
-
     for pixel_x in 0..img_width as u16 {
         for pixel_y in 0..img_height as u16 {
             let x = (start_x + (pixel_x as f64) / img_width * range_x) / img_width;
             let y = (start_y + (pixel_y as f64) / img_height * range_y) / img_height;
 
-            tasks.spawn(async move {
-                return (
-                    pixel_x,
-                    pixel_y,
-                    mandelbrot::get_iterations(x, y, max_iter_count as u32),
-                );
-            });
-        }
-    }
-
-    loop {
-        let opt = tasks.join_next().await;
-
-        if opt.is_some() {
-            let (x, y, result) = opt.unwrap().unwrap();
-
-            iterations[((y as f64) * img_width) as usize + (x as usize)] = result;
-        } else {
-            break;
+            iterations[((pixel_y as f64) * img_width) as usize + (pixel_x as usize)] =
+                mandelbrot::get_iterations(x, y, max_iter_count);
         }
     }
 
@@ -129,4 +104,8 @@ async fn process_request(params: ZoomParams) -> Vec<u8> {
     return vec;
 }
 
+#[tokio::main]
+async fn main() {
+    start_server().await
+}
 // http://localhost:5000/?start_x=0&start_y=0&end_x=1920&end_y=1080&img_width=1920&img_height=1080
