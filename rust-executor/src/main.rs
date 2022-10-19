@@ -1,22 +1,14 @@
 pub mod mandelbrot;
+pub mod zoomparams;
 
-use serde::{Deserialize, Serialize};
 use std::{time::Instant, vec};
+use zoomparams::ZoomParams;
 
 use warp::{
     hyper::{Method, Response},
     Filter,
 };
 
-#[derive(Deserialize, Serialize, Debug)]
-struct ZoomParams {
-    start_x: f64,
-    start_y: f64,
-    end_x: f64,
-    end_y: f64,
-    img_width: u16,
-    img_height: u16,
-}
 impl core::fmt::Display for ZoomParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
