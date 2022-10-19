@@ -9,3 +9,15 @@ pub struct ZoomParams {
     pub img_width: u16,
     pub img_height: u16,
 }
+
+impl core::fmt::Display for ZoomParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(
+            format!(
+                "{}, {}, {}, {}, {}, {}",
+                self.start_x, self.start_y, self.end_x, self.end_y, self.img_width, self.img_height
+            )
+            .as_str(),
+        )
+    }
+}
