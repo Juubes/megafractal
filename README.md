@@ -1,5 +1,7 @@
 # Megafractal
 
+![Mandelbrot set](./images/mandelbrot.png)
+
 ## Description
 
 A toy project to play with the Mandelbrot set and Rust.
